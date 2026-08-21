@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from typing import Self
 
 from .models import JudicialDecision
 
@@ -49,7 +50,7 @@ class DecisionStore:
     def close(self) -> None:
         self.connection.close()
 
-    def __enter__(self) -> "DecisionStore":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *_: object) -> None:
