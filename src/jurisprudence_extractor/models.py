@@ -30,6 +30,10 @@ class JudicialDecision(BaseModel):
     text: str = Field(min_length=1)
     content_kind: Literal["full_text", "excerpt", "metadata"] = "full_text"
     publication_status: Literal["official", "secondary", "unverified"] = "official"
+    anonymization_status: Literal["pending", "automatic", "reviewed", "not_required"] = (
+        "pending"
+    )
+    redaction_count: int = Field(default=0, ge=0)
     collected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     content_sha256: str = ""
 

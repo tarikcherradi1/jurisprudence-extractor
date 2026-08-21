@@ -22,6 +22,10 @@ confirmation avant consultation et le projet ne l'automatise pas.
 - aucun CAPTCHA, compte ou contrôle d'accès contourné ;
 - statuts `official`, `secondary` et `unverified` ;
 - schéma strict Pydantic v2.
+- anonymisation conservatrice des identifiants à forte confiance (courriel, téléphone, CIN
+  explicitement libellée), avec signalement des décisions qui exigent une revue humaine ;
+- audit mesuré du corpus et collecte incrémentale pour les sources ordonnées du plus récent
+  au plus ancien.
 
 ## Installation
 
@@ -53,6 +57,23 @@ jurisprudence-extractor juriscassation-metadata \
 ```
 
 Par défaut, les décisions sont stockées dans `jurisprudence.sqlite3`.
+
+Anonymiser les identifiants à forte confiance avant stockage :
+
+```bash
+jurisprudence-extractor constitutional-court --anonymize --limit 20
+```
+
+Reprendre une source ordonnée du plus récent au plus ancien jusqu'au premier élément déjà
+stocké, puis auditer la base :
+
+```bash
+jurisprudence-extractor constitutional-court --incremental
+jurisprudence-extractor audit
+```
+
+Le mode automatique ne détecte volontairement pas tous les noms de personnes. Le compteur
+`requires_review` signale les textes sensibles à soumettre à une revue humaine avant diffusion.
 
 ## Tests
 

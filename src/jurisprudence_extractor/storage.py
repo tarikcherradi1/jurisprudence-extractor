@@ -25,6 +25,19 @@ class DecisionStore:
             """
         )
 
+    def contains(self, decision: JudicialDecision) -> bool:
+        item = decision if decision.content_sha256 else decision.with_fingerprint()
+        row = self.connection.execute(
+            "SELECT 1 FROM decisions WHERE stable_key = ?", (item.stable_key,)
+        ).fetchone()
+        return row is not None
+
+    def iter_all(self) -> list[JudicialDecision]:
+        rows = self.connection.execute(
+            "SELECT payload_json FROM decisions ORDER BY rowid"
+        ).fetchall()
+        return [JudicialDecision.model_validate_json(row[0]) for row in rows]
+
     def save(self, decision: JudicialDecision) -> bool:
         item = decision if decision.content_sha256 else decision.with_fingerprint()
         cursor = self.connection.execute(

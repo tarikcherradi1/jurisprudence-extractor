@@ -22,3 +22,16 @@
 - Preuve locale : 3 tests réussis et Ruff vert.
 - Smoke test Juriscassation : arrêt sécurisé avant collecte, car la chaîne TLS du serveur
   n'est pas validée par le client Python. La vérification TLS n'est pas désactivée.
+
+## 2026-08-21 — Qualité, anonymisation et reprise incrémentale
+
+- Ajout d'une anonymisation conservatrice des courriels, téléphones marocains et CIN
+  explicitement libellées, avec recalcul de l'empreinte du texte transformé.
+- Ajout d'un signal de revue humaine pour les décisions présentant des indices sensibles ;
+  l'outil ne prétend pas détecter automatiquement tous les noms ou toutes les données privées.
+- Ajout d'un audit JSON mesuré : volumes par source et type de contenu, champs manquants,
+  empreintes de contenu répétées et décisions encore en attente d'anonymisation.
+- Ajout d'un mode incrémental qui s'arrête au premier élément déjà stocké pour les sources
+  explicitement ordonnées du plus récent au plus ancien.
+- Ajout de tests unitaires couvrant l'anonymisation, l'audit et la détection préalable des
+  décisions déjà stockées.

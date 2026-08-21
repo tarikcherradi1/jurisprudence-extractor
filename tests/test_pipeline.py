@@ -1,3 +1,5 @@
+from jurisprudence_extractor.anonymize import anonymize_decision
+from jurisprudence_extractor.audit import audit_corpus
 from jurisprudence_extractor.models import JudicialDecision
 from jurisprudence_extractor.sources import (
     ConstitutionalCourtSource,
@@ -41,7 +43,9 @@ def test_store_deduplicates(tmp_path) -> None:
         text="A sufficiently complete decision text.",
     ).with_fingerprint()
     with DecisionStore(tmp_path / "test.sqlite3") as store:
+        assert store.contains(item) is False
         assert store.save(item) is True
+        assert store.contains(item) is True
         assert store.save(item) is False
 
 
@@ -52,3 +56,39 @@ def test_juriscassation_metadata_parser() -> None:
     assert items[0].decision_number == "2024/104"
     assert items[0].case_number == "2023/1/1/1823"
     assert items[0].content_kind == "excerpt"
+
+
+def test_conservative_anonymization() -> None:
+    item = JudicialDecision(
+        source="test",
+        source_url="https://example.test/decision/2",
+        jurisdiction="Test court",
+        summary="Contact: avocat@example.ma",
+        text="La victime, téléphone 0612345678, CIN: AB123456.",
+    )
+    result = anonymize_decision(item)
+    assert "0612345678" not in result.decision.text
+    assert "AB123456" not in result.decision.text
+    assert "avocat@example.ma" not in result.decision.summary
+    assert result.redaction_count == 3
+    assert result.requires_human_review is True
+    assert result.decision.anonymization_status == "automatic"
+    assert len(result.decision.content_sha256) == 64
+
+
+def test_corpus_audit_uses_measured_counts() -> None:
+    full = JudicialDecision(
+        source="official",
+        source_url="https://example.test/decision/3",
+        jurisdiction="Test court",
+        decision_number="3",
+        text="Same published text.",
+    ).with_fingerprint()
+    excerpt = full.model_copy(
+        update={"source": "secondary", "content_kind": "excerpt"}
+    )
+    report = audit_corpus([full, excerpt])
+    assert report["total"] == 2
+    assert report["by_content_kind"] == {"excerpt": 1, "full_text": 1}
+    assert report["duplicate_content_hashes"] == 1
+    assert report["missing_case_number"] == 2
