@@ -2,7 +2,6 @@ from jurisprudence_extractor.models import JudicialDecision
 from jurisprudence_extractor.sources import ConstitutionalCourtSource
 from jurisprudence_extractor.storage import DecisionStore
 
-
 FIXTURE = """
 <html><body><main>
 <h1>قرارات المحكمة الدستورية</h1>
