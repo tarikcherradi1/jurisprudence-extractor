@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
@@ -29,9 +29,7 @@ class JudicialDecision(BaseModel):
     summary: str | None = None
     text: str = Field(min_length=1)
     publication_status: Literal["official", "secondary", "unverified"] = "official"
-    collected_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    collected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     content_sha256: str = ""
 
     @field_validator("text")
@@ -39,7 +37,7 @@ class JudicialDecision(BaseModel):
     def normalize_text(cls, value: str) -> str:
         return re.sub(r"\s+", " ", value).strip()
 
-    def with_fingerprint(self) -> "JudicialDecision":
+    def with_fingerprint(self) -> JudicialDecision:
         digest = hashlib.sha256(self.text.encode("utf-8")).hexdigest()
         return self.model_copy(update={"content_sha256": digest})
 
