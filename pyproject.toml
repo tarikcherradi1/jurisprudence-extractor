@@ -13,11 +13,13 @@ dependencies = [
   "beautifulsoup4>=4.12,<5",
   "pydantic>=2.8,<3",
   "requests>=2.32,<3",
+  "scrapy>=2.13,<3",
 ]
 
 [project.optional-dependencies]
 huggingface = ["datasets>=3,<5"]
 gcs = ["google-cloud-storage>=3,<4"]
+browser = ["playwright>=1.54,<2", "scrapy-playwright>=0.0.43,<1"]
 dev = ["pytest>=8,<9", "ruff>=0.9,<1"]
 
 [project.scripts]

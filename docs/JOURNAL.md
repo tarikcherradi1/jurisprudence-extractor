@@ -93,3 +93,20 @@
   MarocDroit `33ffda4...`.
 - Exclusion confirmée : les routes PDF de jurisprudence.ma sont interdites par `robots.txt` ;
   Juriscassation reste derrière un code de confirmation et n'est pas contourné.
+
+## 2026-08-21 — Moteur de crawl hybride Scrapy / Playwright
+
+- Ajout de Scrapy comme moteur principal avec `ROBOTSTXT_OBEY`, AutoThrottle, concurrence limitée
+  par domaine, retries bornés et reprise persistante via `JOBDIR`.
+- Ajout d'un pipeline PDF incrémental : validation `%PDF`, SHA-256, déduplication, métadonnées JSON
+  et stockage local selon `raw/pdf/{statut}/{source}`.
+- Ajout d'un stockage GCS générique immuable, réutilisé par les exports documentaires et PDF, avec
+  checksum et précondition de création seule.
+- Ajout optionnel de `scrapy-playwright` et Chromium pour les seules requêtes JavaScript qui seront
+  explicitement marquées par un connecteur ; aucun navigateur n'est utilisé pour les PDF directs.
+- Conservation des exclusions : aucune route interdite par `robots.txt`, aucun CAPTCHA et aucun code
+  de confirmation ne sont contournés.
+- Smoke tests réels avec la session `admin@lovemaroc.org` : deux PDF officiels (9 398 350 octets) et
+  quatre PDF secondaires (1 792 362 octets), tous accompagnés de leur métadonnée JSON dans GCS.
+- Authentification locale effectuée avec un jeton `gcloud` éphémère non écrit sur disque ; une
+  identité de workload reste requise pour l'exécution longue durée dans Google Cloud.

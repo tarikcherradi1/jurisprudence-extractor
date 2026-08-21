@@ -115,6 +115,8 @@ jurisprudence-extractor huggingface-export --limit 100 \
 L'envoi refuse les buckets qui n'imposent pas la prévention de l'accès public et l'accès
 uniforme au niveau du bucket. Chaque objet est créé avec une précondition anti-écrasement et
 un checksum. Les JSON bruts peuvent contenir des données personnelles et doivent rester privés.
+La bibliothèque utilise Application Default Credentials ou, pour un test local court, un jeton
+éphémère fourni dans `GOOGLE_OAUTH_ACCESS_TOKEN` ; ce jeton ne doit jamais être écrit sur disque.
 
 ## Collecte des PDF publics
 
@@ -127,6 +129,33 @@ Le collecteur applique la RFC 9309, met en cache chaque `robots.txt`, respecte u
 requêtes, refuse les erreurs serveur et les routes interdites, limite les hôtes et vérifie la
 signature `%PDF` avant stockage. Les recueils institutionnels et les republications privées sont
 rangés séparément.
+
+Pour une collecte reprenable et parallélisée par domaine, utiliser le moteur Scrapy :
+
+```bash
+pip install -e '.[gcs]'
+jurisprudence-extractor crawl-pdfs \
+  --pdf-source constitutional \
+  --output-dir pdf-corpus \
+  --job-dir crawl-state/constitutional \
+  --bucket gti-secure-vault-2026 \
+  --prefix jurisprudence
+```
+
+Scrapy respecte `robots.txt`, applique AutoThrottle, limite la concurrence par domaine et conserve
+sa file d'attente dans `--job-dir`. Les PDF sont validés et dédupliqués par SHA-256 avant création
+immuable dans `raw/pdf/`; leurs fiches JSON sont écrites dans `metadata/`.
+
+Le navigateur est optionnel et réservé aux connecteurs qui marquent explicitement une requête comme
+rendue en JavaScript :
+
+```bash
+pip install -e '.[browser]'
+playwright install chromium
+jurisprudence-extractor crawl-pdfs --pdf-source constitutional --browser-fallback
+```
+
+Activer ce drapeau ne contourne ni `robots.txt`, ni CAPTCHA, ni code de confirmation.
 
 ## Tests
 

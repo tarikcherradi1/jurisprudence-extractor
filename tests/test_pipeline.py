@@ -7,6 +7,7 @@ from jurisprudence_extractor.pdf_sources import (
     ConstitutionalCourtPdfSource,
     write_pdf_assets,
 )
+from jurisprudence_extractor.scrapy_crawler import PdfArchivePipeline, _safe_collection
 from jurisprudence_extractor.sources import (
     ConstitutionalCourtSource,
     HuggingFaceDatasetSource,
@@ -253,3 +254,45 @@ def test_constitutional_pdf_discovery_and_storage(tmp_path) -> None:
     assert assets[0].title == "Recueil"
     assert manifest.read_text().count("\n") == 1
     assert len(list((tmp_path / "pdf").rglob("*.pdf"))) == 1
+
+
+class FakeStats:
+    def __init__(self) -> None:
+        self.values = {}
+
+    def inc_value(self, name, count=1) -> None:
+        self.values[name] = self.values.get(name, 0) + count
+
+
+class FakeCrawler:
+    def __init__(self) -> None:
+        self.stats = FakeStats()
+
+
+def test_scrapy_pdf_pipeline_writes_deterministic_archive(tmp_path) -> None:
+    crawler = FakeCrawler()
+    pipeline = PdfArchivePipeline(str(tmp_path), None, "jurisprudence", crawler)
+    pipeline.open_spider()
+    item = pipeline.process_item(
+        {
+            "body": b"%PDF-1.7 scalable collector",
+            "collection": "official/test-court",
+            "publication_status": "official",
+            "source_page": "https://example.test/list",
+            "source_url": "https://example.test/decision.pdf",
+            "title": "Decision test",
+        }
+    )
+    assert len(item["sha256"]) == 64
+    assert (tmp_path / "raw" / "pdf" / "official" / "test-court" / f"{item['sha256']}.pdf").is_file()
+    assert (tmp_path / "metadata" / "official" / "test-court" / f"{item['sha256']}.json").is_file()
+    assert crawler.stats.values["pdf/archived"] == 1
+
+
+def test_scrapy_pdf_pipeline_rejects_unsafe_collection() -> None:
+    try:
+        _safe_collection("../escape")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("unsafe collection path must be rejected")

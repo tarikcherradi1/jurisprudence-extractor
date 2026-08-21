@@ -35,6 +35,7 @@ def main() -> None:
             "huggingface-export",
             "constitutional-pdfs",
             "marocdroit-pdfs",
+            "crawl-pdfs",
         ],
     )
     parser.add_argument("--database", default="jurisprudence.sqlite3")
@@ -43,6 +44,17 @@ def main() -> None:
     parser.add_argument("--input-jsonl", help="local published Hugging Face JSONL file")
     parser.add_argument("--bucket", help="existing private Google Cloud Storage bucket")
     parser.add_argument("--prefix", default="jurisprudence")
+    parser.add_argument(
+        "--pdf-source",
+        choices=["constitutional", "marocdroit"],
+        help="source spider used by crawl-pdfs",
+    )
+    parser.add_argument("--job-dir", help="Scrapy state directory used to pause and resume")
+    parser.add_argument(
+        "--browser-fallback",
+        action="store_true",
+        help="enable the Playwright download handler for source requests marked as JavaScript",
+    )
     parser.add_argument(
         "--incremental",
         action="store_true",
@@ -123,6 +135,21 @@ def main() -> None:
         print(
             f"pdfs={len(assets)} bytes={sum(len(asset.data) for asset in assets)} "
             f"manifest={manifest_path}"
+        )
+        return
+    if args.source == "crawl-pdfs":
+        if not args.pdf_source:
+            parser.error("--pdf-source is required for crawl-pdfs")
+        from .scrapy_crawler import run_pdf_crawl
+
+        run_pdf_crawl(
+            source=args.pdf_source,
+            output_dir=args.output_dir,
+            bucket=args.bucket,
+            prefix=args.prefix,
+            job_dir=args.job_dir,
+            limit=args.limit,
+            browser_fallback=args.browser_fallback,
         )
         return
 

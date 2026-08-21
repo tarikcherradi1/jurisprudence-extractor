@@ -14,6 +14,11 @@ Les deux recueils officiels couvrent respectivement les décisions du Conseil co
 
 - Officiel : `gs://gti-secure-vault-2026/jurisprudence/pdf/official/cour-constitutionnelle/`.
 - Secondaire : `gs://gti-secure-vault-2026/jurisprudence/pdf/secondary/marocdroit/`.
+- Archive Scrapy officielle :
+  `gs://gti-secure-vault-2026/jurisprudence/raw/pdf/official/cour-constitutionnelle/`.
+- Archive Scrapy secondaire :
+  `gs://gti-secure-vault-2026/jurisprudence/raw/pdf/secondary/marocdroit/`.
+- Métadonnées unitaires : `gs://gti-secure-vault-2026/jurisprudence/metadata/`.
 - SHA-256 du manifeste officiel :
   `ed60ef82fe0a65db48f2184359e229300012239401ea1a8a5b5c895c942e0e4d`.
 - SHA-256 du manifeste secondaire :
@@ -28,3 +33,12 @@ Les deux recueils officiels couvrent respectivement les décisions du Conseil co
 
 L'inventaire doit maintenant être étendu aux sitemaps et pages publiques autorisées des autres
 institutions et éditeurs, avec déduplication par SHA-256.
+
+## Validation du moteur Scrapy
+
+- Cour constitutionnelle : deux PDF, 9 398 350 octets, deux fiches JSON distantes.
+- MarocDroit : quatre PDF, 1 792 362 octets, quatre fiches JSON distantes.
+- Les deux crawls ont reçu `robots.txt` en HTTP 200 et se sont terminés avec le nombre d'objets
+  attendu.
+- Les noms d'objets PDF sont les SHA-256 complets des fichiers, ce qui rend la déduplication
+  vérifiable directement depuis GCS.
