@@ -6,6 +6,7 @@
 |---|---|---:|---:|---:|
 | Cour constitutionnelle | officielle | 2 | 1 264 | 9 398 350 |
 | MarocDroit | secondaire | 4 | 23 | 1 792 362 |
+| MarocDroit - recherche complète | secondaire | 8 | 66 | 5 001 959 |
 
 Les deux recueils officiels couvrent respectivement les décisions du Conseil constitutionnel de
 2016 et du début de 2017, puis les décisions de la Cour constitutionnelle de 2019 à 2023.
@@ -19,6 +20,8 @@ Les deux recueils officiels couvrent respectivement les décisions du Conseil co
 - Archive Scrapy secondaire :
   `gs://gti-secure-vault-2026/jurisprudence/raw/pdf/secondary/marocdroit/`.
 - Métadonnées unitaires : `gs://gti-secure-vault-2026/jurisprudence/metadata/`.
+- Markdown courant : `gs://gti-secure-vault-2026/jurisprudence/derived/md/v2/`.
+- Rapports courants : `gs://gti-secure-vault-2026/jurisprudence/derived/extraction/v2/`.
 - SHA-256 du manifeste officiel :
   `ed60ef82fe0a65db48f2184359e229300012239401ea1a8a5b5c895c942e0e4d`.
 - SHA-256 du manifeste secondaire :
@@ -42,3 +45,7 @@ institutions et éditeurs, avec déduplication par SHA-256.
   attendu.
 - Les noms d'objets PDF sont les SHA-256 complets des fichiers, ce qui rend la déduplication
   vérifiable directement depuis GCS.
+- Quatorze PDF ont été transformés en Markdown : 1 353 pages physiques et 1 737 089 caractères non
+  blancs. Deux scans ont nécessité l'OCR et sont marqués pour revue humaine.
+- La version `v2` étend ce signal à toutes les republications secondaires ; `v1` est conservée
+  comme dérivé historique immuable.

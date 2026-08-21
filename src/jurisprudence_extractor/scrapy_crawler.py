@@ -6,7 +6,7 @@ import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ClassVar
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote_plus, urljoin, urlparse
 
 import scrapy
 from scrapy.crawler import CrawlerProcess
@@ -15,6 +15,25 @@ from scrapy.http import Request
 
 USER_AGENT = "JurisprudenceExtractor/0.1 (+public legal research; admin@lovemaroc.org)"
 PROTECTED_STATUSES = {401, 403, 429}
+COLLECTION_MARKERS = (
+    "قضاء محكمة النقض عدد",
+    "مجلة قضاء",
+    "دفاتر محكمة النقض",
+    "jurisprudence",
+)
+DECISION_MARKERS = ("قرار", "حكم", "أمر قضائي", "arrêt", "jugement", "ordonnance")
+RESEARCH_MARKERS = (
+    "تعليق",
+    "قراءة في",
+    "دراسة",
+    "بحث",
+    "رسالة",
+    "أطروحة",
+    "commentaire",
+    "étude",
+    "mémoire",
+    "thèse",
+)
 
 
 def _safe_collection(value: str) -> str:
@@ -22,6 +41,17 @@ def _safe_collection(value: str) -> str:
     if not collection or ".." in collection or not re.fullmatch(r"[a-z0-9/_-]+", collection):
         raise ValueError(f"Unsafe collection path: {value!r}")
     return collection
+
+
+def _classify_judicial_pdf(title: str) -> str | None:
+    normalized = " ".join(title.casefold().split())
+    if any(marker.casefold() in normalized for marker in RESEARCH_MARKERS):
+        return None
+    if any(marker.casefold() in normalized for marker in COLLECTION_MARKERS):
+        return "collection"
+    if any(marker.casefold() in normalized for marker in DECISION_MARKERS):
+        return "decision"
+    return None
 
 
 class PdfArchivePipeline:
@@ -82,6 +112,8 @@ class PdfArchivePipeline:
             "source_page": str(item["source_page"]),
             "source_url": str(item["source_url"]),
             "publication_status": str(item["publication_status"]),
+            "document_kind": str(item.get("document_kind") or "decision"),
+            "requires_human_review": str(item["publication_status"]) != "official",
             "bytes": len(data),
             "sha256": sha256,
             "collected_at": datetime.now(UTC).isoformat(),
@@ -136,6 +168,7 @@ class PublicPdfSpider(scrapy.Spider):
         publication_status: str,
         source_page: str,
         title: str,
+        document_kind: str = "decision",
     ) -> dict[str, object]:
         self._ensure_public(response)
         return {
@@ -145,6 +178,7 @@ class PublicPdfSpider(scrapy.Spider):
             "source_page": source_page,
             "source_url": response.url,
             "title": title,
+            "document_kind": document_kind,
         }
 
 
@@ -183,6 +217,7 @@ class ConstitutionalPdfSpider(PublicPdfSpider):
             publication_status="official",
             source_page=source_page,
             title=title,
+            document_kind="collection",
         )
 
 
@@ -207,9 +242,75 @@ class MarocDroitPdfSpider(PublicPdfSpider):
         )
 
 
+class MarocDroitSearchPdfSpider(PublicPdfSpider):
+    """Discover public judicial PDF attachments through the site's own search."""
+
+    name = "marocdroit-search-pdfs"
+    allowed_domains: ClassVar[list[str]] = ["marocdroit.com", "www.marocdroit.com"]
+    preflight_urls: ClassVar[list[str]] = ["https://www.marocdroit.com/search/"]
+    search_terms: ClassVar[tuple[str, ...]] = (
+        "قضاء النقض",
+        "محكمة النقض",
+        "المحكمة الإدارية",
+        "المحكمة التجارية",
+        "محكمة الاستئناف",
+    )
+
+    async def start(self):
+        for term in self.search_terms:
+            yield Request(
+                f"https://www.marocdroit.com/search/?keyword={quote_plus(term)}",
+                callback=self.parse_search,
+            )
+
+    def parse_search(self, response):
+        self._ensure_public(response)
+        article_links = response.css('a[href*="_a"][href$=".html"]::attr(href)').getall()
+        for href in sorted(set(article_links)):
+            yield response.follow(href, callback=self.parse_article)
+
+        pagination = response.css('a[href*="/search/"][href*="start_liste="]::attr(href)').getall()
+        for href in sorted(set(pagination)):
+            yield response.follow(href, callback=self.parse_search)
+
+    def parse_article(self, response):
+        self._ensure_public(response)
+        page_title = response.css("h1::text, title::text").get() or "Publication MarocDroit"
+        attachments = response.css('a[href*="/attachment/"]')
+        for link in attachments:
+            href = link.attrib.get("href")
+            if not href:
+                continue
+            attachment_title = " ".join(link.css("::text").getall()).strip()
+            title = attachment_title or page_title.strip()
+            document_kind = _classify_judicial_pdf(f"{page_title} {title}")
+            if document_kind is None:
+                continue
+            yield response.follow(
+                href,
+                callback=self.parse_pdf,
+                cb_kwargs={
+                    "source_page": response.url,
+                    "title": title,
+                    "document_kind": document_kind,
+                },
+            )
+
+    def parse_pdf(self, response, source_page: str, title: str, document_kind: str):
+        yield self._pdf_item(
+            response,
+            collection="secondary/marocdroit-search",
+            publication_status="secondary",
+            source_page=source_page,
+            title=title,
+            document_kind=document_kind,
+        )
+
+
 SPIDERS = {
     "constitutional": ConstitutionalPdfSpider,
     "marocdroit": MarocDroitPdfSpider,
+    "marocdroit-search": MarocDroitSearchPdfSpider,
 }
 
 
@@ -231,7 +332,11 @@ def run_pdf_crawl(
 
     robots_client = PublicHttpClient()
     robots_client.delay_seconds = 0
-    for url in SPIDERS[source].start_urls:
+    spider_class = SPIDERS[source]
+    preflight_urls = getattr(spider_class, "start_urls", None) or getattr(
+        spider_class, "preflight_urls", []
+    )
+    for url in preflight_urls:
         robots_client.assert_robots_allowed(url)
 
     settings: dict[str, object] = {
@@ -275,5 +380,5 @@ def run_pdf_crawl(
         )
 
     process = CrawlerProcess(settings=settings)
-    process.crawl(SPIDERS[source])
+    process.crawl(spider_class)
     process.start()

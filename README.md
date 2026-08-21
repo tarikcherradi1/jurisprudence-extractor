@@ -157,6 +157,35 @@ jurisprudence-extractor crawl-pdfs --pdf-source constitutional --browser-fallbac
 
 Activer ce drapeau ne contourne ni `robots.txt`, ni CAPTCHA, ni code de confirmation.
 
+Étendre la découverte aux résultats publics paginés de MarocDroit :
+
+```bash
+jurisprudence-extractor crawl-pdfs \
+  --pdf-source marocdroit-search \
+  --limit 100 \
+  --output-dir pdf-corpus \
+  --job-dir crawl-state/marocdroit-search
+```
+
+Le spider suit uniquement les pages de recherche, leurs articles et les pièces jointes. Il classe
+les décisions et recueils, rejette les marqueurs doctrinaux explicites et marque toute source
+secondaire pour revue humaine.
+
+## PDF vers Markdown et OCR
+
+```bash
+jurisprudence-extractor pdf-to-markdown \
+  --input-dir pdf-corpus \
+  --output-dir pdf-corpus \
+  --bucket gti-secure-vault-2026 \
+  --prefix jurisprudence
+```
+
+Le texte natif est préféré. Si sa densité est insuffisante, `ocrmypdf` utilise les modèles arabe,
+français et anglais. Les dérivés courants sont versionnés sous `derived/md/v2/`; tout résultat OCR
+ou provenant d'une source secondaire porte `requires_human_review: true`. Le PDF original n'est
+jamais modifié.
+
 ## Tests
 
 ```bash

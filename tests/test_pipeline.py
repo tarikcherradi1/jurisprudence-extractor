@@ -3,11 +3,16 @@ from jurisprudence_extractor.artifacts import build_artifacts, manifest_entry, w
 from jurisprudence_extractor.audit import audit_corpus
 from jurisprudence_extractor.huggingface_audit import summarize_dataset
 from jurisprudence_extractor.models import JudicialDecision
+from jurisprudence_extractor.pdf_markdown import _markdown_document, _split_pdf_text
 from jurisprudence_extractor.pdf_sources import (
     ConstitutionalCourtPdfSource,
     write_pdf_assets,
 )
-from jurisprudence_extractor.scrapy_crawler import PdfArchivePipeline, _safe_collection
+from jurisprudence_extractor.scrapy_crawler import (
+    PdfArchivePipeline,
+    _classify_judicial_pdf,
+    _safe_collection,
+)
 from jurisprudence_extractor.sources import (
     ConstitutionalCourtSource,
     HuggingFaceDatasetSource,
@@ -296,3 +301,42 @@ def test_scrapy_pdf_pipeline_rejects_unsafe_collection() -> None:
         pass
     else:
         raise AssertionError("unsafe collection path must be rejected")
+
+
+def test_pdf_markdown_preserves_pages_and_provenance() -> None:
+    markdown = _markdown_document(
+        ["Première page", "الصفحة الثانية"],
+        {
+            "title": "Décision 2026/1",
+            "source_url": "https://example.test/decision.pdf",
+            "publication_status": "official",
+        },
+        "a" * 64,
+        "native",
+    )
+    assert "source_pdf_sha256: " + "a" * 64 in markdown
+    assert "source_url: \"https://example.test/decision.pdf\"" in markdown
+    assert "extractor_version: v2" in markdown
+    assert "requires_human_review: false" in markdown
+    assert "## Page 1" in markdown
+    assert "## Page 2" in markdown
+    assert "الصفحة الثانية" in markdown
+
+    ocr_markdown = _markdown_document(["نص"], {}, "b" * 64, "ocr")
+    assert "requires_human_review: true" in ocr_markdown
+
+    secondary_markdown = _markdown_document(
+        ["Texte natif"], {"publication_status": "secondary"}, "c" * 64, "native"
+    )
+    assert "requires_human_review: true" in secondary_markdown
+
+
+def test_marocdroit_pdf_classification_excludes_doctrine() -> None:
+    assert _classify_judicial_pdf("قرار محكمة النقض حول أجل الشفعة.pdf") == "decision"
+    assert _classify_judicial_pdf("مجلة قضاء محكمة النقض عدد 87") == "collection"
+    assert _classify_judicial_pdf("نظام التصدي في قانون المسطرة المدنية") is None
+    assert _classify_judicial_pdf("تعليق على قرار المحكمة الدستورية") is None
+
+
+def test_pdf_text_split_preserves_blank_physical_page() -> None:
+    assert _split_pdf_text("page one\f\f") == ["page one", ""]

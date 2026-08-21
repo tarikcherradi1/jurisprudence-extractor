@@ -36,20 +36,27 @@ def main() -> None:
             "constitutional-pdfs",
             "marocdroit-pdfs",
             "crawl-pdfs",
+            "pdf-to-markdown",
         ],
     )
     parser.add_argument("--database", default="jurisprudence.sqlite3")
     parser.add_argument("--limit", type=int)
-    parser.add_argument("--output-dir", default="corpus-pilot")
+    parser.add_argument("--output-dir")
     parser.add_argument("--input-jsonl", help="local published Hugging Face JSONL file")
     parser.add_argument("--bucket", help="existing private Google Cloud Storage bucket")
     parser.add_argument("--prefix", default="jurisprudence")
     parser.add_argument(
         "--pdf-source",
-        choices=["constitutional", "marocdroit"],
+        choices=["constitutional", "marocdroit", "marocdroit-search"],
         help="source spider used by crawl-pdfs",
     )
     parser.add_argument("--job-dir", help="Scrapy state directory used to pause and resume")
+    parser.add_argument("--input-dir", help="local PDF corpus root for pdf-to-markdown")
+    parser.add_argument(
+        "--no-ocr",
+        action="store_true",
+        help="disable OCR fallback for image-only PDF pages",
+    )
     parser.add_argument(
         "--browser-fallback",
         action="store_true",
@@ -74,6 +81,7 @@ def main() -> None:
         help="Juriscassation chamber ID; repeat to select multiple chambers",
     )
     args = parser.parse_args()
+    output_dir = args.output_dir or "corpus-pilot"
 
     logging.basicConfig(level=logging.INFO)
     if args.source == "audit":
@@ -103,14 +111,14 @@ def main() -> None:
         for raw_row, original in rows:
             anonymized = anonymize_decision(original)
             bundle = build_artifacts(original, anonymized, raw_row)
-            write_artifacts(args.output_dir, bundle)
+            write_artifacts(output_dir, bundle)
             manifest.append(manifest_entry(bundle))
             review += int(bundle.requires_human_review)
             if uploader:
                 new_count, existing_count = uploader.upload(bundle)
                 uploaded += new_count
                 existing += existing_count
-        manifest_path = Path(args.output_dir) / "manifests" / "opendatamoroccanlaw.jsonl"
+        manifest_path = Path(output_dir) / "manifests" / "opendatamoroccanlaw.jsonl"
         manifest_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         manifest_path.write_text(
             "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in manifest),
@@ -123,7 +131,7 @@ def main() -> None:
         return
     if args.source == "constitutional-pdfs":
         assets = list(ConstitutionalCourtPdfSource().iter_pdfs(limit=args.limit))
-        manifest_path = write_pdf_assets(args.output_dir, assets)
+        manifest_path = write_pdf_assets(output_dir, assets)
         print(
             f"pdfs={len(assets)} bytes={sum(len(asset.data) for asset in assets)} "
             f"manifest={manifest_path}"
@@ -131,7 +139,7 @@ def main() -> None:
         return
     if args.source == "marocdroit-pdfs":
         assets = list(MarocDroitPdfSource().iter_pdfs(limit=args.limit))
-        manifest_path = write_pdf_assets(args.output_dir, assets, collection="marocdroit")
+        manifest_path = write_pdf_assets(output_dir, assets, collection="marocdroit")
         print(
             f"pdfs={len(assets)} bytes={sum(len(asset.data) for asset in assets)} "
             f"manifest={manifest_path}"
@@ -144,12 +152,31 @@ def main() -> None:
 
         run_pdf_crawl(
             source=args.pdf_source,
-            output_dir=args.output_dir,
+            output_dir=output_dir,
             bucket=args.bucket,
             prefix=args.prefix,
             job_dir=args.job_dir,
             limit=args.limit,
             browser_fallback=args.browser_fallback,
+        )
+        return
+    if args.source == "pdf-to-markdown":
+        if not args.input_dir:
+            parser.error("--input-dir is required for pdf-to-markdown")
+        from .pdf_markdown import extract_pdf_markdown
+
+        results = extract_pdf_markdown(
+            corpus_root=args.input_dir,
+            output_root=args.output_dir or args.input_dir,
+            limit=args.limit,
+            enable_ocr=not args.no_ocr,
+            bucket=args.bucket,
+            prefix=args.prefix,
+        )
+        print(
+            f"pdfs={len(results)} pages={sum(item.pages for item in results)} "
+            f"characters={sum(item.characters for item in results)} "
+            f"ocr={sum(item.extraction_method == 'ocr' for item in results)}"
         )
         return
 

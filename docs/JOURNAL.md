@@ -110,3 +110,19 @@
   quatre PDF secondaires (1 792 362 octets), tous accompagnés de leur métadonnée JSON dans GCS.
 - Authentification locale effectuée avec un jeton `gcloud` éphémère non écrit sur disque ; une
   identité de workload reste requise pour l'exécution longue durée dans Google Cloud.
+
+## 2026-08-21 — Recherche MarocDroit et PDF vers Markdown
+
+- Ajout d'un spider sur la recherche publique paginée de MarocDroit avec cinq expressions
+  judiciaires, suivi limité aux articles et pièces jointes autorisés par `robots.txt`.
+- Ajout d'une classification `decision` / `collection` ; les pièces purement doctrinales sont
+  exclues du corpus judiciaire.
+- Crawl exhaustif des cinq recherches : huit ressources PDF uniques, 66 pages et 5 001 959 octets
+  archivés dans GCS ; sept décisions/candidats et un commentaire doctrinal détecté à reclasser.
+- Ajout de l'extraction `pdftotext -layout`, avec repli `ocrmypdf` arabe, français et anglais lorsque
+  le texte natif est insuffisant.
+- Conversion de quatorze PDF : 1 353 pages physiques et 1 737 089 caractères non blancs ; deux scans
+  ont utilisé l'OCR.
+- Dérivés courants versionnés sous `derived/md/v2` et `derived/extraction/v2`; chaque OCR et chaque
+  republication secondaire sont marqués `requires_human_review=true`. La `v1` reste immuable et les
+  PDF sources restent inchangés.
