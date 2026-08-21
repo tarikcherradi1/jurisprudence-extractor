@@ -33,6 +33,7 @@ def main() -> None:
     parser.add_argument("--database", default="jurisprudence.sqlite3")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--output-dir", default="corpus-pilot")
+    parser.add_argument("--input-jsonl", help="local published Hugging Face JSONL file")
     parser.add_argument("--bucket", help="existing private Google Cloud Storage bucket")
     parser.add_argument("--prefix", default="jurisprudence")
     parser.add_argument(
@@ -75,7 +76,12 @@ def main() -> None:
         existing = 0
         review = 0
         source = HuggingFaceDatasetSource()
-        for raw_row, original in source.iter_api_rows(limit=limit):
+        rows = (
+            source.iter_jsonl(args.input_jsonl, limit=limit)
+            if args.input_jsonl
+            else source.iter_api_rows(limit=limit)
+        )
+        for raw_row, original in rows:
             anonymized = anonymize_decision(original)
             bundle = build_artifacts(original, anonymized, raw_row)
             write_artifacts(args.output_dir, bundle)

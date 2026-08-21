@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from datetime import date
+from pathlib import Path
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -310,3 +312,23 @@ class HuggingFaceDatasetSource:
                 except (TypeError, ValueError):
                     LOGGER.warning("Skipping incomplete dataset row %s", offset)
                 offset += 1
+
+    def iter_jsonl(
+        self, path: str | Path, limit: int | None = None
+    ) -> Iterator[tuple[dict[str, object], JudicialDecision]]:
+        """Stream the published JSONL file without loading the corpus into memory."""
+        yielded = 0
+        with Path(path).open(encoding="utf-8") as stream:
+            for index, line in enumerate(stream):
+                if limit is not None and yielded >= limit:
+                    return
+                try:
+                    row = json.loads(line)
+                    if not isinstance(row, dict):
+                        raise TypeError("row is not an object")
+                    decision = self.parse_row(row, index)
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    LOGGER.warning("Skipping invalid JSONL row %s", index)
+                    continue
+                yield row, decision
+                yielded += 1

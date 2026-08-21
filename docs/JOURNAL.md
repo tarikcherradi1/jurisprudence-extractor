@@ -61,3 +61,20 @@
 - Envoi réussi sous `jurisprudence/pilots/2026-08-21/` : 301 objets et 1,88 MiB annoncés.
 - Intégrité vérifiée : le SHA-256 du manifeste local et distant est identique
   (`01b77f56492af91e53c4135e22adc21396ddaae1571c239fb1eb85a77b052b6e`).
+
+## 2026-08-21 — Corpus OpenDataMoroccanLaw complet sur GCS
+
+- L'API de prévisualisation Hugging Face a répondu `429` après 3 000 lignes ; abandon de cette
+  voie pour la collecte complète afin de respecter la limitation de débit.
+- Téléchargement du fichier JSONL publié (29 000 lignes) puis ajout d'un lecteur JSONL en flux.
+- Export complet : 29 000 JSON bruts, 29 000 Markdown, 29 000 métadonnées et un manifeste ;
+  volume local mesuré : 686 Mo.
+- 3 663 décisions portent un signal automatique de revue prioritaire ; les 29 000 restent privées
+  car ce signal n'est pas une preuve d'anonymisation exhaustive.
+- Envoi sous le préfixe versionné correspondant à la révision Hugging Face `7090abd00c...`.
+- Preuve distante : 29 000 JSON bruts, 29 000 Markdown, JSONL source complet, archive complète
+  des 29 000 métadonnées et manifeste, pour 686,78 MiB annoncés par GCS.
+- L'envoi individuel des métadonnées a été arrêté après 2 523 objets en raison d'une attente sous
+  quota ; l'archive complète vérifiée garantit leur sauvegarde sans solliciter 29 000 écritures.
+- SHA-256 distants vérifiés : manifeste `af0e08a...`, JSONL `3c0a2df...`, archive métadonnées
+  `e4afbd3...`.

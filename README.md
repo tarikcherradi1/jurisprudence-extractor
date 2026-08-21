@@ -93,6 +93,15 @@ Créer un pilote local de 100 décisions :
 jurisprudence-extractor huggingface-export --limit 100 --output-dir corpus-pilot
 ```
 
+Pour le corpus complet, télécharger une seule fois le JSONL publié puis l'exporter en flux local
+évite les limites de débit de l'API de prévisualisation :
+
+```bash
+jurisprudence-extractor huggingface-export --limit 29000 \
+  --input-jsonl /chemin/vers/train.jsonl \
+  --output-dir /chemin/vers/corpus
+```
+
 Après authentification Google Cloud, envoyer le même pilote vers un bucket privé existant :
 
 ```bash

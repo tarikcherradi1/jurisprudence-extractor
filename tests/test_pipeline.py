@@ -160,3 +160,17 @@ def test_artifact_bundle_preserves_raw_and_sanitizes_markdown(tmp_path) -> None:
     assert bundle.requires_human_review is True
     assert len(manifest_entry(bundle)["objects"]) == 3
     assert (tmp_path / markdown.name).is_file()
+
+
+def test_huggingface_jsonl_stream(tmp_path) -> None:
+    path = tmp_path / "train.jsonl"
+    path.write_text(
+        '{"docket_number":"1/1","decision_number":"2026/1",'
+        '"date":"2026-01-02T00:00:00","chamber":"مدنية","bench":null,'
+        '"text":"نص قرار قضائي منشور وكاف للاختبار.","has_preamble":false,'
+        '"source":"juriscassation.cspj.ma"}\n',
+        encoding="utf-8",
+    )
+    rows = list(HuggingFaceDatasetSource().iter_jsonl(path))
+    assert len(rows) == 1
+    assert rows[0][1].decision_number == "2026/1"
