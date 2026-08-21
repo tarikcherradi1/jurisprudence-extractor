@@ -23,24 +23,36 @@ class SourceBlocked(RuntimeError):
     """Raised when collection is disallowed or requires protected access."""
 
 
-class PublicSource(ABC):
+class PublicHttpClient:
     user_agent = "JurisprudenceExtractor/0.1 (+research; contact required)"
     delay_seconds = 1.0
 
     def __init__(self, session: requests.Session | None = None) -> None:
         self.session = session or requests.Session()
         self.session.headers.update({"User-Agent": self.user_agent})
+        self._robots_cache: dict[str, RobotFileParser | None] = {}
 
     def assert_robots_allowed(self, url: str) -> None:
         parsed = urlparse(url)
-        robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
-        parser = RobotFileParser(robots_url)
-        try:
-            response = self.session.get(robots_url, timeout=(10, 30))
-            response.raise_for_status()
-            parser.parse(response.text.splitlines())
-        except requests.RequestException as exc:
-            raise SourceBlocked(f"Unable to verify robots.txt for {url}") from exc
+        authority = f"{parsed.scheme}://{parsed.netloc}"
+        if authority not in self._robots_cache:
+            robots_url = f"{authority}/robots.txt"
+            try:
+                response = self.session.get(robots_url, timeout=(10, 30))
+            except requests.RequestException as exc:
+                raise SourceBlocked(f"robots.txt is unreachable for {url}") from exc
+            if 400 <= response.status_code < 500:
+                self._robots_cache[authority] = None
+            elif response.status_code >= 500:
+                raise SourceBlocked(f"robots.txt is unreachable for {url}")
+            else:
+                response.raise_for_status()
+                parser = RobotFileParser(robots_url)
+                parser.parse(response.text.splitlines())
+                self._robots_cache[authority] = parser
+        parser = self._robots_cache[authority]
+        if parser is None:
+            return
         if not parser.can_fetch(self.user_agent, url):
             raise SourceBlocked(f"robots.txt disallows collection: {url}")
 
@@ -66,6 +78,8 @@ class PublicSource(ABC):
         response.raise_for_status()
         return response
 
+
+class PublicSource(PublicHttpClient, ABC):
     @abstractmethod
     def iter_decisions(self, limit: int | None = None) -> Iterator[JudicialDecision]:
         raise NotImplementedError

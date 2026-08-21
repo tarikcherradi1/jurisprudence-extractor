@@ -3,10 +3,16 @@ from jurisprudence_extractor.artifacts import build_artifacts, manifest_entry, w
 from jurisprudence_extractor.audit import audit_corpus
 from jurisprudence_extractor.huggingface_audit import summarize_dataset
 from jurisprudence_extractor.models import JudicialDecision
+from jurisprudence_extractor.pdf_sources import (
+    ConstitutionalCourtPdfSource,
+    write_pdf_assets,
+)
 from jurisprudence_extractor.sources import (
     ConstitutionalCourtSource,
     HuggingFaceDatasetSource,
     JuriscassationMetadataSource,
+    PublicHttpClient,
+    SourceBlocked,
 )
 from jurisprudence_extractor.storage import DecisionStore
 
@@ -174,3 +180,76 @@ def test_huggingface_jsonl_stream(tmp_path) -> None:
     rows = list(HuggingFaceDatasetSource().iter_jsonl(path))
     assert len(rows) == 1
     assert rows[0][1].decision_number == "2026/1"
+
+
+class FakeResponse:
+    def __init__(self, status_code=200, text="", content=b"") -> None:
+        self.status_code = status_code
+        self.text = text
+        self.content = content or text.encode()
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise RuntimeError(self.status_code)
+
+
+class FakeSession:
+    def __init__(self, responses) -> None:
+        self.responses = responses
+        self.headers = {}
+
+    def get(self, url, **_kwargs):
+        return self.responses[url]
+
+
+def test_robots_404_allows_and_5xx_blocks() -> None:
+    target = "https://example.test/public.pdf"
+    allowed = PublicHttpClient(
+        FakeSession(
+            {
+                "https://example.test/robots.txt": FakeResponse(status_code=404),
+                target: FakeResponse(content=b"%PDF-1.7 public"),
+            }
+        )
+    )
+    allowed.delay_seconds = 0
+    assert allowed.get(target).content.startswith(b"%PDF-")
+
+    blocked = PublicHttpClient(
+        FakeSession({"https://example.test/robots.txt": FakeResponse(status_code=503)})
+    )
+    blocked.delay_seconds = 0
+    try:
+        blocked.get(target)
+    except SourceBlocked:
+        pass
+    else:
+        raise AssertionError("5xx robots response must fail closed")
+
+
+def test_constitutional_pdf_discovery_and_storage(tmp_path) -> None:
+    index = ConstitutionalCourtPdfSource.index_url
+    page = "https://cour-constitutionnelle.ma/Pdf?id=240"
+    pdf = "https://cour-constitutionnelle.ma/Documents/Lois/decisions.pdf"
+    source = ConstitutionalCourtPdfSource(
+        FakeSession(
+            {
+                "https://cour-constitutionnelle.ma/robots.txt": FakeResponse(
+                    text="User-agent: *\nDisallow:\n"
+                ),
+                index: FakeResponse(text='<a href="Pdf?id=240">recueil</a>'),
+                page: FakeResponse(
+                    text='<div class="pdf-container"><div class="title">Recueil</div>'
+                    '<a href="/Documents/Lois/decisions.pdf">PDF</a></div>'
+                ),
+                pdf: FakeResponse(content=b"%PDF-1.7 official decisions"),
+            }
+        )
+    )
+    source.delay_seconds = 0
+    assets = list(source.iter_pdfs())
+    manifest = write_pdf_assets(tmp_path, assets)
+    assert len(assets) == 1
+    assert assets[0].title == "Recueil"
+    assert manifest.read_text().count("\n") == 1
+    assert len(list((tmp_path / "pdf").rglob("*.pdf"))) == 1

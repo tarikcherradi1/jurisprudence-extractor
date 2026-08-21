@@ -78,3 +78,18 @@
   quota ; l'archive complète vérifiée garantit leur sauvegarde sans solliciter 29 000 écritures.
 - SHA-256 distants vérifiés : manifeste `af0e08a...`, JSONL `3c0a2df...`, archive métadonnées
   `e4afbd3...`.
+
+## 2026-08-21 — Collecte initiale des PDF judiciaires publics
+
+- Mise en conformité du contrôle `robots.txt` avec la RFC 9309 : `4xx` autorise, erreur réseau ou
+  `5xx` refuse, et toute règle `Disallow` applicable reste bloquante.
+- Ajout d'un collecteur PDF limité par domaine, délai, signature `%PDF` et empreinte SHA-256.
+- Cour constitutionnelle : deux recueils officiels récupérés, 1 264 pages et 9 398 350 octets.
+- MarocDroit : quatre décisions secondaires récupérées, 23 pages et 1 792 362 octets.
+- Validation `pdfinfo` : six PDF valides et non chiffrés ; contrôle visuel des couvertures des deux
+  recueils institutionnels.
+- Stockage GCS séparé sous `pdf/official/` et `pdf/secondary/`, avec précondition anti-écrasement.
+- Intégrité des manifestes vérifiée local/distant : Cour constitutionnelle `ed60ef8...`,
+  MarocDroit `33ffda4...`.
+- Exclusion confirmée : les routes PDF de jurisprudence.ma sont interdites par `robots.txt` ;
+  Juriscassation reste derrière un code de confirmation et n'est pas contourné.

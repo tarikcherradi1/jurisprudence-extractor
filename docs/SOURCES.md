@@ -7,6 +7,9 @@
 | Juriscassation | expérimentale | parseur métadonnées/extraits | TLS non validé hors navigateur, texte derrière code |
 | Adala | catalogue | renvoi vers Juriscassation | pas de corpus distinct identifié |
 | Portail des jugements | suspendue | ancien endpoint JSON | protection TSPD et filtres incohérents |
+| Cour constitutionnelle - PDF | active | recueils officiels publics | 2 recueils découverts sur la page institutionnelle |
+| MarocDroit - PDF | secondaire | pièces jointes publiques | 4 décisions initiales, inventaire à étendre |
+| jurisprudence.ma - PDF | interdite | routes PDF privées | `robots.txt` interdit explicitement `?pdf=` |
 
 Le statut `suspendue` signifie que le connecteur ne doit pas être activé tant qu'une interface
 publique stable ou une autorisation institutionnelle n'est pas disponible.
@@ -24,3 +27,10 @@ publique stable ou une autorisation institutionnelle n'est pas disponible.
 
 Ces nombres proviennent de l'API du dataset et peuvent évoluer. La commande
 `jurisprudence-extractor huggingface-audit` les recalcule sans télécharger tout le corpus.
+
+## Politique PDF
+
+La collecte suit la RFC 9309 : une réponse `4xx` sur `/robots.txt` signifie que les règles sont
+indisponibles et permet l'accès, tandis qu'une erreur réseau ou `5xx` entraîne un refus complet.
+Une règle `Disallow` applicable reste bloquante. Les codes de confirmation, CAPTCHA, comptes et
+routes interdites ne sont jamais contournés.

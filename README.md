@@ -116,6 +116,18 @@ L'envoi refuse les buckets qui n'imposent pas la prévention de l'accès public 
 uniforme au niveau du bucket. Chaque objet est créé avec une précondition anti-écrasement et
 un checksum. Les JSON bruts peuvent contenir des données personnelles et doivent rester privés.
 
+## Collecte des PDF publics
+
+```bash
+jurisprudence-extractor constitutional-pdfs --output-dir pdf-corpus
+jurisprudence-extractor marocdroit-pdfs --output-dir pdf-corpus
+```
+
+Le collecteur applique la RFC 9309, met en cache chaque `robots.txt`, respecte un délai entre les
+requêtes, refuse les erreurs serveur et les routes interdites, limite les hôtes et vérifie la
+signature `%PDF` avant stockage. Les recueils institutionnels et les republications privées sont
+rangés séparément.
+
 ## Tests
 
 ```bash

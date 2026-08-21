@@ -9,6 +9,11 @@ from .anonymize import anonymize_decision
 from .artifacts import build_artifacts, manifest_entry, write_artifacts
 from .audit import audit_corpus
 from .huggingface_audit import fetch_dataset_audit
+from .pdf_sources import (
+    ConstitutionalCourtPdfSource,
+    MarocDroitPdfSource,
+    write_pdf_assets,
+)
 from .sources import (
     ConstitutionalCourtSource,
     HuggingFaceDatasetSource,
@@ -28,6 +33,8 @@ def main() -> None:
             "audit",
             "huggingface-audit",
             "huggingface-export",
+            "constitutional-pdfs",
+            "marocdroit-pdfs",
         ],
     )
     parser.add_argument("--database", default="jurisprudence.sqlite3")
@@ -100,6 +107,22 @@ def main() -> None:
         print(
             f"exported={len(manifest)} review={review} uploaded={uploaded} "
             f"existing={existing} manifest={manifest_path}"
+        )
+        return
+    if args.source == "constitutional-pdfs":
+        assets = list(ConstitutionalCourtPdfSource().iter_pdfs(limit=args.limit))
+        manifest_path = write_pdf_assets(args.output_dir, assets)
+        print(
+            f"pdfs={len(assets)} bytes={sum(len(asset.data) for asset in assets)} "
+            f"manifest={manifest_path}"
+        )
+        return
+    if args.source == "marocdroit-pdfs":
+        assets = list(MarocDroitPdfSource().iter_pdfs(limit=args.limit))
+        manifest_path = write_pdf_assets(args.output_dir, assets, collection="marocdroit")
+        print(
+            f"pdfs={len(assets)} bytes={sum(len(asset.data) for asset in assets)} "
+            f"manifest={manifest_path}"
         )
         return
 
