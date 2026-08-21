@@ -28,6 +28,7 @@ class JudicialDecision(BaseModel):
     title: str | None = None
     summary: str | None = None
     text: str = Field(min_length=1)
+    content_kind: Literal["full_text", "excerpt", "metadata"] = "full_text"
     publication_status: Literal["official", "secondary", "unverified"] = "official"
     collected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     content_sha256: str = ""

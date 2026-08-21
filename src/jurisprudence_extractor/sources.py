@@ -34,8 +34,10 @@ class PublicSource(ABC):
         robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
         parser = RobotFileParser(robots_url)
         try:
-            parser.read()
-        except OSError as exc:
+            response = self.session.get(robots_url, timeout=(10, 30))
+            response.raise_for_status()
+            parser.parse(response.text.splitlines())
+        except requests.RequestException as exc:
             raise SourceBlocked(f"Unable to verify robots.txt for {url}") from exc
         if not parser.can_fetch(self.user_agent, url):
             raise SourceBlocked(f"robots.txt disallows collection: {url}")
@@ -44,6 +46,17 @@ class PublicSource(ABC):
         self.assert_robots_allowed(url)
         time.sleep(self.delay_seconds)
         response = self.session.get(url, timeout=(10, 45))
+        if response.status_code in {401, 403, 429}:
+            raise SourceBlocked(
+                f"Protected or rate-limited source ({response.status_code}): {url}"
+            )
+        response.raise_for_status()
+        return response
+
+    def post(self, url: str, data: dict[str, object]) -> requests.Response:
+        self.assert_robots_allowed(url)
+        time.sleep(self.delay_seconds)
+        response = self.session.post(url, data=data, timeout=(10, 45))
         if response.status_code in {401, 403, 429}:
             raise SourceBlocked(
                 f"Protected or rate-limited source ({response.status_code}): {url}"
@@ -109,6 +122,89 @@ class ConstitutionalCourtSource(PublicSource):
             yield self.parse_decision(self.get(url).text, url)
             if limit is not None and len(seen) >= limit:
                 return
+
+
+class JuriscassationMetadataSource(PublicSource):
+    """Collect official public search metadata without bypassing the document gate."""
+
+    index_url = "https://juriscassation.cspj.ma/Decisions/RechercheDecisions"
+    results_url = "https://juriscassation.cspj.ma/Decisions/RechercheDecisionsRes"
+
+    def __init__(
+        self,
+        subject: str,
+        chambers: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7),
+        session: requests.Session | None = None,
+    ) -> None:
+        super().__init__(session=session)
+        if len(subject.strip()) < 3:
+            raise ValueError("Juriscassation requires a subject of at least 3 characters")
+        if not chambers or any(chamber not in range(1, 8) for chamber in chambers):
+            raise ValueError("Chambers must contain values between 1 and 7")
+        self.subject = subject.strip()
+        self.chambers = chambers
+
+    def parse_results(self, html: str) -> list[JudicialDecision]:
+        soup = BeautifulSoup(html, "html.parser")
+        decisions: list[JudicialDecision] = []
+        for row in soup.select("table#myid tbody tr"):
+            cells = row.select("td")
+            if len(cells) < 4:
+                continue
+            case_number = cells[0].get_text(" ", strip=True) or None
+            decision_number = cells[1].get_text(" ", strip=True) or None
+            raw_date = cells[2].get_text(" ", strip=True)
+            excerpt = cells[3].get_text(" ", strip=True)
+            if not excerpt:
+                continue
+            decision_date = date.fromisoformat(raw_date) if raw_date else None
+            source_id = "|".join(
+                value for value in (case_number, decision_number, raw_date) if value
+            )
+            decisions.append(
+                JudicialDecision(
+                    source="juriscassation_cspj_metadata",
+                    source_url=self.index_url,
+                    source_id=source_id,
+                    jurisdiction="Cour de cassation",
+                    court="Cour de cassation du Royaume du Maroc",
+                    decision_number=decision_number,
+                    case_number=case_number,
+                    decision_date=decision_date,
+                    language="ar",
+                    summary=excerpt,
+                    text=excerpt,
+                    content_kind="excerpt",
+                    publication_status="official",
+                ).with_fingerprint()
+            )
+        return decisions
+
+    def iter_decisions(self, limit: int | None = None) -> Iterator[JudicialDecision]:
+        index = self.get(self.index_url)
+        soup = BeautifulSoup(index.text, "html.parser")
+        token = soup.select_one('input[name="__RequestVerificationToken"]')
+        if token is None or not token.get("value"):
+            raise SourceBlocked("Juriscassation verification token is unavailable")
+
+        yielded = 0
+        page = 1
+        while limit is None or yielded < limit:
+            data: dict[str, object] = {
+                "ChambreIds": [str(chamber) for chamber in self.chambers],
+                "Sujet": self.subject,
+                "page": page,
+                "__RequestVerificationToken": token.get("value"),
+            }
+            items = self.parse_results(self.post(self.results_url, data).text)
+            if not items:
+                return
+            for item in items:
+                yield item
+                yielded += 1
+                if limit is not None and yielded >= limit:
+                    return
+            page += 1
 
 
 class HuggingFaceDatasetSource:

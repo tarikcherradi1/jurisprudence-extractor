@@ -6,9 +6,12 @@ Pipeline traçable de collecte de jurisprudence marocaine rendue publiquement ac
 
 - **Cour constitutionnelle du Maroc** : collecte des pages publiques, sans contournement.
 - **OpenDataMoroccanLaw** : import en streaming du dataset public de décisions de la Cour de cassation.
+- **Juriscassation** : collecte des métadonnées et extraits de recherche officiellement exposés.
 
 Les portails Juriscassation, Adala et Portail des jugements seront ajoutés seulement après
 validation de leurs conditions d'utilisation et de leurs interfaces publiques.
+Le texte intégral de Juriscassation reste volontairement exclu : le site impose un code de
+confirmation avant consultation et le projet ne l'automatise pas.
 
 ## Garanties
 
@@ -40,6 +43,13 @@ Collecter des décisions constitutionnelles publiques :
 
 ```bash
 jurisprudence-extractor constitutional-court --limit 20
+```
+
+Collecter des métadonnées Juriscassation par sujet et chambre :
+
+```bash
+jurisprudence-extractor juriscassation-metadata \
+  --subject "المسؤولية" --chamber 1 --limit 20
 ```
 
 Par défaut, les décisions sont stockées dans `jurisprudence.sqlite3`.
