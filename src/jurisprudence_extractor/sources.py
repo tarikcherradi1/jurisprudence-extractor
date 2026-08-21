@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
+from datetime import date
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -65,18 +67,16 @@ class ConstitutionalCourtSource(PublicSource):
         number = None
         decision_date = None
 
-        number_match = __import__("re").search(r"قرار\s+رقم\s*[:：]?\s*([^\s]+)", page_text)
+        number_match = re.search(r"قرار\s+رقم\s*[:：]?\s*([^\s]+)", page_text)
         if number_match:
             number = number_match.group(1)
 
-        date_match = __import__("re").search(
+        date_match = re.search(
             r"تاريخ\s+صدور\s+القرار\s*[:：]?\s*(\d{4}/\d{2}/\d{2})",
             page_text,
         )
         if date_match:
-            from datetime import datetime
-
-            decision_date = datetime.strptime(date_match.group(1), "%Y/%m/%d").date()
+            decision_date = date.fromisoformat(date_match.group(1).replace("/", "-"))
 
         main = soup.select_one("main, .decision, .content, #content")
         text = main.get_text(" ", strip=True) if main else page_text
@@ -100,7 +100,8 @@ class ConstitutionalCourtSource(PublicSource):
         response = self.get(self.index_url)
         soup = BeautifulSoup(response.text, "html.parser")
         seen: set[str] = set()
-        for link in soup.select('a[href*="Decision?id="], a[href*="Decision?Page=Decision&id="]'):
+        selector = 'a[href*="Decision?id="], a[href*="Decision?Page=Decision&id="]'
+        for link in soup.select(selector):
             url = requests.compat.urljoin(self.index_url, link.get("href"))
             if url in seen:
                 continue
