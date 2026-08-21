@@ -45,3 +45,15 @@
   avec conservation de l'origine déclarée mais sans URL individuelle par décision.
 - Ajout d'une commande d'audit distant reproductible ne téléchargeant pas l'intégralité du corpus.
 - Ajout de tests du mapping et du résumé statistique.
+
+## 2026-08-21 — Pilote documentaire et stockage Google Cloud
+
+- Ajout du pipeline `raw JSON` + `normalized Markdown` + `metadata JSON` et d'un manifeste JSONL.
+- Ajout d'identifiants stables, empreintes SHA-256 et types MIME pour chaque objet.
+- Ajout d'un stockage GCS optionnel avec checksum, création seule et refus des buckets qui
+  n'imposent pas la prévention de l'accès public et l'accès uniforme au niveau du bucket.
+- Pilote local mesuré : 100 décisions, 301 fichiers et 2,6 Mo.
+- Dix décisions présentent les signaux sensibles actuellement détectés ; les 100 décisions
+  restent soumises à revue humaine, car l'absence de signal n'établit pas l'absence de noms.
+- Envoi Cloud bloqué : le compte configuré `admin@lovemaroc.org` sur le projet
+  `gti-secure-vault` exige une réauthentification interactive ; aucun bucket n'a été créé ou modifié.

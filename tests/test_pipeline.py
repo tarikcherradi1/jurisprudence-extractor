@@ -1,4 +1,5 @@
 from jurisprudence_extractor.anonymize import anonymize_decision
+from jurisprudence_extractor.artifacts import build_artifacts, manifest_entry, write_artifacts
 from jurisprudence_extractor.audit import audit_corpus
 from jurisprudence_extractor.huggingface_audit import summarize_dataset
 from jurisprudence_extractor.models import JudicialDecision
@@ -133,3 +134,29 @@ def test_huggingface_audit_summary() -> None:
     assert report["rows"] == 29_000
     assert report["missing_bench"] == 28_604
     assert report["text_length_max"] == 124_181
+
+
+def test_artifact_bundle_preserves_raw_and_sanitizes_markdown(tmp_path) -> None:
+    original = JudicialDecision(
+        source="secondary-source",
+        source_url="https://example.test/dataset",
+        source_id="row-1",
+        jurisdiction="Test court",
+        decision_number="2026/1",
+        text="La victime peut être jointe au 0612345678.",
+    ).with_fingerprint()
+    bundle = build_artifacts(
+        original,
+        anonymize_decision(original),
+        {"text": original.text, "source": "official.example"},
+    )
+    write_artifacts(tmp_path, bundle)
+    raw = next(item for item in bundle.objects if item.name.startswith("raw/"))
+    markdown = next(item for item in bundle.objects if item.name.startswith("normalized/"))
+    metadata = next(item for item in bundle.objects if item.name.startswith("metadata/"))
+    assert b"0612345678" in raw.data
+    assert b"0612345678" not in markdown.data
+    assert b"0612345678" not in metadata.data
+    assert bundle.requires_human_review is True
+    assert len(manifest_entry(bundle)["objects"]) == 3
+    assert (tmp_path / markdown.name).is_file()

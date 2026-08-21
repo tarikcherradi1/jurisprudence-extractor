@@ -85,6 +85,28 @@ Le corpus Hugging Face est traité comme une republication `secondary` sous lice
 Son champ `source` conserve l'origine déclarée `juriscassation.cspj.ma`, mais il ne fournit pas
 d'URL individuelle permettant de vérifier chaque décision sur le portail institutionnel.
 
+## Export documentaire et Google Cloud Storage
+
+Créer un pilote local de 100 décisions :
+
+```bash
+jurisprudence-extractor huggingface-export --limit 100 --output-dir corpus-pilot
+```
+
+Après authentification Google Cloud, envoyer le même pilote vers un bucket privé existant :
+
+```bash
+pip install -e '.[gcs]'
+jurisprudence-extractor huggingface-export --limit 100 \
+  --output-dir corpus-pilot \
+  --bucket NOM_DU_BUCKET \
+  --prefix jurisprudence/pilots/2026-08-21
+```
+
+L'envoi refuse les buckets qui n'imposent pas la prévention de l'accès public et l'accès
+uniforme au niveau du bucket. Chaque objet est créé avec une précondition anti-écrasement et
+un checksum. Les JSON bruts peuvent contenir des données personnelles et doivent rester privés.
+
 ## Tests
 
 ```bash

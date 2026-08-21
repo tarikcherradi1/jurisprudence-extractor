@@ -213,6 +213,7 @@ class HuggingFaceDatasetSource:
         "https://huggingface.co/datasets/"
         "OpenDataMoroccanLaw/morocco-cassation-court-decisions"
     )
+    rows_api_url = "https://datasets-server.huggingface.co/rows"
 
     @classmethod
     def parse_row(cls, row: dict[str, object], index: int) -> JudicialDecision:
@@ -275,3 +276,37 @@ class HuggingFaceDatasetSource:
             yielded += 1
             if limit is not None and yielded >= limit:
                 return
+
+    def iter_api_rows(
+        self, limit: int = 100
+    ) -> Iterator[tuple[dict[str, object], JudicialDecision]]:
+        """Fetch bounded rows through the public dataset API for pilots and audits."""
+        if limit < 1:
+            return
+        offset = 0
+        while offset < limit:
+            length = min(100, limit - offset)
+            response = requests.get(
+                self.rows_api_url,
+                params={
+                    "dataset": self.dataset_id,
+                    "config": "default",
+                    "split": "train",
+                    "offset": offset,
+                    "length": length,
+                },
+                timeout=(10, 60),
+            )
+            response.raise_for_status()
+            rows = response.json().get("rows", [])
+            if not rows:
+                return
+            for wrapped in rows:
+                row = wrapped.get("row", {})
+                if not isinstance(row, dict):
+                    continue
+                try:
+                    yield row, self.parse_row(row, offset)
+                except (TypeError, ValueError):
+                    LOGGER.warning("Skipping incomplete dataset row %s", offset)
+                offset += 1

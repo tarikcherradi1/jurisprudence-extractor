@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+from pathlib import Path
 
 from .anonymize import anonymize_decision
+from .artifacts import build_artifacts, manifest_entry, write_artifacts
 from .audit import audit_corpus
 from .huggingface_audit import fetch_dataset_audit
 from .sources import (
@@ -25,10 +27,14 @@ def main() -> None:
             "juriscassation-metadata",
             "audit",
             "huggingface-audit",
+            "huggingface-export",
         ],
     )
     parser.add_argument("--database", default="jurisprudence.sqlite3")
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--output-dir", default="corpus-pilot")
+    parser.add_argument("--bucket", help="existing private Google Cloud Storage bucket")
+    parser.add_argument("--prefix", default="jurisprudence")
     parser.add_argument(
         "--incremental",
         action="store_true",
@@ -56,6 +62,39 @@ def main() -> None:
         return
     if args.source == "huggingface-audit":
         print(json.dumps(fetch_dataset_audit(), ensure_ascii=False, indent=2))
+        return
+    if args.source == "huggingface-export":
+        limit = args.limit or 100
+        uploader = None
+        if args.bucket:
+            from .gcs import GCSArtifactStore
+
+            uploader = GCSArtifactStore(args.bucket, args.prefix)
+        manifest: list[dict[str, object]] = []
+        uploaded = 0
+        existing = 0
+        review = 0
+        source = HuggingFaceDatasetSource()
+        for raw_row, original in source.iter_api_rows(limit=limit):
+            anonymized = anonymize_decision(original)
+            bundle = build_artifacts(original, anonymized, raw_row)
+            write_artifacts(args.output_dir, bundle)
+            manifest.append(manifest_entry(bundle))
+            review += int(bundle.requires_human_review)
+            if uploader:
+                new_count, existing_count = uploader.upload(bundle)
+                uploaded += new_count
+                existing += existing_count
+        manifest_path = Path(args.output_dir) / "manifests" / "opendatamoroccanlaw.jsonl"
+        manifest_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        manifest_path.write_text(
+            "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in manifest),
+            encoding="utf-8",
+        )
+        print(
+            f"exported={len(manifest)} review={review} uploaded={uploaded} "
+            f"existing={existing} manifest={manifest_path}"
+        )
         return
 
     if args.source == "constitutional-court":
