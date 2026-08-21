@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jurisprudence-extractor"
+version = "0.1.0"
+description = "Traçable ingestion pipeline for public Moroccan case law"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+  "beautifulsoup4>=4.12,<5",
+  "pydantic>=2.8,<3",
+  "requests>=2.32,<3",
+  "scrapy>=2.13,<3",
+]
+
+[project.optional-dependencies]
+huggingface = ["datasets>=3,<5"]
+gcs = ["google-cloud-storage>=3,<4"]
+browser = ["playwright>=1.54,<2", "scrapy-playwright>=0.0.43,<1"]
+dev = ["pytest>=8,<9", "ruff>=0.9,<1"]
+
+[project.scripts]
+jurisprudence-extractor = "jurisprudence_extractor.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jurisprudence_extractor"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

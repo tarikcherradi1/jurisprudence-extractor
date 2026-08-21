@@ -1,0 +1,8 @@
+__pycache__/
+.pytest_cache/
+*.py[cod]
+.venv/
+*.sqlite3
+corpus-pilot/
+pdf-corpus/
+*.bak.*
