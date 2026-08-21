@@ -19,6 +19,7 @@ class JudicialDecision(BaseModel):
     jurisdiction: str = Field(min_length=2)
     court: str | None = None
     chamber: str | None = None
+    formation: str | None = None
     city: str | None = None
     decision_number: str | None = None
     case_number: str | None = None
@@ -30,6 +31,9 @@ class JudicialDecision(BaseModel):
     text: str = Field(min_length=1)
     content_kind: Literal["full_text", "excerpt", "metadata"] = "full_text"
     publication_status: Literal["official", "secondary", "unverified"] = "official"
+    source_license: str | None = None
+    upstream_source: str | None = None
+    has_preamble: bool | None = None
     anonymization_status: Literal["pending", "automatic", "reviewed", "not_required"] = (
         "pending"
     )

@@ -1,8 +1,10 @@
 from jurisprudence_extractor.anonymize import anonymize_decision
 from jurisprudence_extractor.audit import audit_corpus
+from jurisprudence_extractor.huggingface_audit import summarize_dataset
 from jurisprudence_extractor.models import JudicialDecision
 from jurisprudence_extractor.sources import (
     ConstitutionalCourtSource,
+    HuggingFaceDatasetSource,
     JuriscassationMetadataSource,
 )
 from jurisprudence_extractor.storage import DecisionStore
@@ -92,3 +94,42 @@ def test_corpus_audit_uses_measured_counts() -> None:
     assert report["by_content_kind"] == {"excerpt": 1, "full_text": 1}
     assert report["duplicate_content_hashes"] == 1
     assert report["missing_case_number"] == 2
+
+
+def test_huggingface_row_mapping_matches_published_schema() -> None:
+    item = HuggingFaceDatasetSource.parse_row(
+        {
+            "docket_number": "1/2/2/187",
+            "decision_number": "2021/34",
+            "date": "2021-02-02T00:00:00",
+            "chamber": "غرفة الأحوال الشخصية والميراث",
+            "bench": None,
+            "text": "باسم جلالة الملك وطبقا للقانون نص قرار منشور للاختبار.",
+            "has_preamble": True,
+            "source": "juriscassation.cspj.ma",
+        },
+        0,
+    )
+    assert item.case_number == "1/2/2/187"
+    assert item.decision_date.isoformat() == "2021-02-02"
+    assert item.publication_status == "secondary"
+    assert item.source_license == "CC-BY-4.0"
+    assert item.upstream_source == "juriscassation.cspj.ma"
+
+
+def test_huggingface_audit_summary() -> None:
+    size = {"size": {"dataset": {"num_rows": 29_000, "num_bytes_parquet_files": 85}}}
+    statistics = {
+        "statistics": [
+            {"column_name": "date", "column_statistics": {"min": "1997", "max": "2026", "nan_count": 0}},
+            {"column_name": "chamber", "column_statistics": {"frequencies": {"civil": 5}}},
+            {"column_name": "bench", "column_statistics": {"nan_count": 28_604}},
+            {"column_name": "decision_number", "column_statistics": {"nan_count": 0}},
+            {"column_name": "docket_number", "column_statistics": {"nan_count": 0}},
+            {"column_name": "text", "column_statistics": {"min": 410, "max": 124_181}},
+        ]
+    }
+    report = summarize_dataset(size, statistics)
+    assert report["rows"] == 29_000
+    assert report["missing_bench"] == 28_604
+    assert report["text_length_max"] == 124_181

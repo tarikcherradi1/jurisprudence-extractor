@@ -6,6 +6,7 @@ import logging
 
 from .anonymize import anonymize_decision
 from .audit import audit_corpus
+from .huggingface_audit import fetch_dataset_audit
 from .sources import (
     ConstitutionalCourtSource,
     HuggingFaceDatasetSource,
@@ -23,6 +24,7 @@ def main() -> None:
             "huggingface-cassation",
             "juriscassation-metadata",
             "audit",
+            "huggingface-audit",
         ],
     )
     parser.add_argument("--database", default="jurisprudence.sqlite3")
@@ -51,6 +53,9 @@ def main() -> None:
     if args.source == "audit":
         with DecisionStore(args.database) as store:
             print(json.dumps(audit_corpus(store.iter_all()), ensure_ascii=False, indent=2))
+        return
+    if args.source == "huggingface-audit":
+        print(json.dumps(fetch_dataset_audit(), ensure_ascii=False, indent=2))
         return
 
     if args.source == "constitutional-court":

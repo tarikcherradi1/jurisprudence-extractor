@@ -43,6 +43,12 @@ Importer un petit échantillon du dataset public :
 jurisprudence-extractor huggingface-cassation --limit 20
 ```
 
+Auditer à distance la taille et le schéma actuellement publiés, sans télécharger le corpus :
+
+```bash
+jurisprudence-extractor huggingface-audit
+```
+
 Collecter des décisions constitutionnelles publiques :
 
 ```bash
@@ -74,6 +80,10 @@ jurisprudence-extractor audit
 
 Le mode automatique ne détecte volontairement pas tous les noms de personnes. Le compteur
 `requires_review` signale les textes sensibles à soumettre à une revue humaine avant diffusion.
+
+Le corpus Hugging Face est traité comme une republication `secondary` sous licence CC-BY-4.0.
+Son champ `source` conserve l'origine déclarée `juriscassation.cspj.ma`, mais il ne fournit pas
+d'URL individuelle permettant de vérifier chaque décision sur le portail institutionnel.
 
 ## Tests
 

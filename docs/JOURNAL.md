@@ -35,3 +35,13 @@
   explicitement ordonnées du plus récent au plus ancien.
 - Ajout de tests unitaires couvrant l'anonymisation, l'audit et la détection préalable des
   décisions déjà stockées.
+
+## 2026-08-21 — Audit et correction du dataset OpenDataMoroccanLaw
+
+- Audit de l'API Hugging Face : 29 000 lignes, 8 colonnes et période 1997-07-22 à 2026-06-26.
+- Correction du mapping selon le schéma réellement publié : `docket_number`, `decision_number`,
+  `date`, `chamber`, `bench`, `text`, `has_preamble` et `source`.
+- Correction de la provenance : le dataset est une republication secondaire sous CC-BY-4.0,
+  avec conservation de l'origine déclarée mais sans URL individuelle par décision.
+- Ajout d'une commande d'audit distant reproductible ne téléchargeant pas l'intégralité du corpus.
+- Ajout de tests du mapping et du résumé statistique.

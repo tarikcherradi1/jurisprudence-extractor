@@ -209,6 +209,51 @@ class JuriscassationMetadataSource(PublicSource):
 
 class HuggingFaceDatasetSource:
     dataset_id = "OpenDataMoroccanLaw/morocco-cassation-court-decisions"
+    dataset_url = (
+        "https://huggingface.co/datasets/"
+        "OpenDataMoroccanLaw/morocco-cassation-court-decisions"
+    )
+
+    @classmethod
+    def parse_row(cls, row: dict[str, object], index: int) -> JudicialDecision:
+        text = str(row.get("text") or "").strip()
+        if not text:
+            raise ValueError(f"Dataset row {index} has no decision text")
+
+        raw_date = str(row.get("date") or "").strip()
+        decision_date = date.fromisoformat(raw_date[:10]) if raw_date else None
+        docket_number = str(row.get("docket_number") or "").strip() or None
+        decision_number = str(row.get("decision_number") or "").strip() or None
+        source_id = "|".join(
+            value
+            for value in (
+                docket_number,
+                decision_number,
+                decision_date.isoformat() if decision_date else None,
+            )
+            if value
+        ) or str(index)
+
+        return JudicialDecision(
+            source="opendatamoroccanlaw_huggingface",
+            source_url=cls.dataset_url,
+            source_id=source_id,
+            jurisdiction="Cour de cassation",
+            court="Cour de cassation du Royaume du Maroc",
+            chamber=str(row.get("chamber") or "").strip() or None,
+            formation=str(row.get("bench") or "").strip() or None,
+            decision_number=decision_number,
+            case_number=docket_number,
+            decision_date=decision_date,
+            language="ar",
+            text=text,
+            publication_status="secondary",
+            source_license="CC-BY-4.0",
+            upstream_source=str(row.get("source") or "").strip() or None,
+            has_preamble=(
+                row.get("has_preamble") if isinstance(row.get("has_preamble"), bool) else None
+            ),
+        ).with_fingerprint()
 
     def iter_decisions(self, limit: int | None = None) -> Iterator[JudicialDecision]:
         try:
@@ -219,25 +264,14 @@ class HuggingFaceDatasetSource:
             ) from exc
 
         dataset = load_dataset(self.dataset_id, split="train", streaming=True)
+        yielded = 0
         for index, row in enumerate(dataset):
-            text = str(row.get("text") or row.get("decision_text") or "").strip()
-            source_url = row.get("url") or row.get("source_url")
-            if not text or not source_url:
+            try:
+                decision = self.parse_row(row, index)
+            except (TypeError, ValueError):
                 LOGGER.warning("Skipping incomplete dataset row %s", index)
                 continue
-            yield JudicialDecision(
-                source="juriscassation_cspj_via_huggingface",
-                source_url=source_url,
-                source_id=str(row.get("id") or index),
-                jurisdiction="Cour de cassation",
-                court="Cour de cassation du Royaume du Maroc",
-                decision_number=row.get("decision_number"),
-                case_number=row.get("case_number"),
-                decision_date=row.get("decision_date") or row.get("date"),
-                language=row.get("language") or "ar",
-                title=row.get("title"),
-                text=text,
-                publication_status="official",
-            ).with_fingerprint()
-            if limit is not None and index + 1 >= limit:
+            yield decision
+            yielded += 1
+            if limit is not None and yielded >= limit:
                 return
