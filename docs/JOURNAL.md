@@ -55,5 +55,9 @@
 - Pilote local mesuré : 100 décisions, 301 fichiers et 2,6 Mo.
 - Dix décisions présentent les signaux sensibles actuellement détectés ; les 100 décisions
   restent soumises à revue humaine, car l'absence de signal n'établit pas l'absence de noms.
-- Envoi Cloud bloqué : le compte configuré `admin@lovemaroc.org` sur le projet
-  `gti-secure-vault` exige une réauthentification interactive ; aucun bucket n'a été créé ou modifié.
+- Authentification `admin@lovemaroc.org` renouvelée par l'opérateur.
+- Prévention d'accès public renforcée à `enforced` sur le bucket existant
+  `gs://gti-secure-vault-2026` ; accès uniforme déjà actif et aucune liaison IAM publique constatée.
+- Envoi réussi sous `jurisprudence/pilots/2026-08-21/` : 301 objets et 1,88 MiB annoncés.
+- Intégrité vérifiée : le SHA-256 du manifeste local et distant est identique
+  (`01b77f56492af91e53c4135e22adc21396ddaae1571c239fb1eb85a77b052b6e`).

@@ -19,6 +19,19 @@ Le corpus local est ignoré par Git. Le pipeline GCS refuse tout bucket sans pr�
 l'accès public `enforced` et sans accès uniforme au niveau du bucket. Les objets sont créés
 avec `if_generation_match=0`, ce qui interdit leur écrasement silencieux.
 
-L'envoi n'a pas été exécuté : la session Google Cloud configurée demande le mot de passe du
-compte `admin@lovemaroc.org`. Une fois la session renouvelée, il faudra identifier le bucket
-privé existant avant de relancer la commande avec `--bucket`.
+## Preuve Google Cloud
+
+- Projet : `gti-secure-vault`.
+- Bucket : `gs://gti-secure-vault-2026` (`EUROPE-WEST1`).
+- Préfixe : `jurisprudence/pilots/2026-08-21/`.
+- Prévention d'accès public : `enforced`.
+- Accès uniforme au niveau du bucket : activé.
+- Suppression douce : sept jours.
+- Objets distants : 301.
+- Volume distant annoncé : 1,88 MiB.
+- SHA-256 local et distant du manifeste :
+  `01b77f56492af91e53c4135e22adc21396ddaae1571c239fb1eb85a77b052b6e`.
+
+Le pilote a été envoyé avec `gcloud storage` et une précondition de génération nulle afin de
+refuser l'écrasement d'un objet existant. Les identifiants Application Default restent à
+renouveler pour utiliser directement le client Python `google-cloud-storage`.
